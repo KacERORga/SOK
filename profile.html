@@ -34,10 +34,9 @@
                 <p id="profile-name"></p>
                 <div class="profile-stats">
                     <div class="stat"><span id="posts-count">0</span> постов</div>
-                    <div class="stat"><span id="followers-count">0</span> подписчиков</div>
-                    <div class="stat"><span id="following-count">0</span> подписок</div>
+                    <div class="stat"><span id="followers-count">45</span> подписчиков</div>
+                    <div class="stat"><span id="following-count">12</span> подписок</div>
                 </div>
-                <button id="follow-btn" class="profile-follow-btn" style="display: none;">Подписаться</button>
             </div>
         </div>
 
@@ -58,41 +57,36 @@
         </div>
     </div>
 
-    <script src="script.js"></script>
     <script>
-        let currentUser = JSON.parse(localStorage.getItem('user') || '{}');
-        let profileUser = currentUser.username;
+        let currentUser = JSON.parse(localStorage.getItem('user') || '{"username":"Гость", "name":"Гость"}');
+        let posts = JSON.parse(localStorage.getItem('sok_posts') || '[]');
         
         document.getElementById('user-name').textContent = currentUser.username;
         document.getElementById('profile-username').textContent = currentUser.username;
         document.getElementById('profile-name').textContent = currentUser.name || currentUser.username;
-        document.getElementById('profile-avatar').textContent = currentUser.username?.charAt(0).toUpperCase();
-
-        loadProfilePosts();
-
-        function loadProfilePosts() {
-            fetch('/api/get-posts')
-                .then(res => res.json())
-                .then(posts => {
-                    const userPosts = posts.filter(p => p.username === profileUser);
-                    const container = document.getElementById('profile-posts');
-                    if (!userPosts.length) {
-                        container.innerHTML = '<div class="empty-state">📝 Нет постов. Напишите что-нибудь!</div>';
-                        return;
-                    }
-                    container.innerHTML = userPosts.map(post => `
-                        <div class="post-card">
-                            <div class="post-content">${escapeHtml(post.content)}</div>
-                            <div class="post-stats">
-                                <span>❤️ ${post.likes || 0}</span>
-                                <span>💬 ${post.comments_count || 0}</span>
-                            </div>
-                            <div class="post-date">${formatDate(post.created_at)}</div>
-                        </div>
-                    `).join('');
-                });
+        document.getElementById('profile-avatar').textContent = currentUser.username.charAt(0).toUpperCase();
+        
+        function renderProfilePosts() {
+            const userPosts = posts.filter(p => p.username === currentUser.username);
+            const container = document.getElementById('profile-posts');
+            document.getElementById('posts-count').textContent = userPosts.length;
+            
+            if (!userPosts.length) {
+                container.innerHTML = '<div class="empty-state">📝 Нет постов. Напишите что-нибудь!</div>';
+                return;
+            }
+            container.innerHTML = userPosts.map(post => `
+                <div class="post-card">
+                    <div class="post-content">${escapeHtml(post.content)}</div>
+                    <div class="post-stats">
+                        <span>❤️ ${post.likes || 0}</span>
+                        <span>💬 ${post.comments?.length || 0}</span>
+                    </div>
+                    <div class="post-date">${formatDate(post.created_at)}</div>
+                </div>
+            `).join('');
         }
-
+        
         function showTab(tab) {
             document.querySelectorAll('.profile-tab').forEach(t => t.classList.remove('active'));
             document.querySelectorAll('.profile-tab-content').forEach(c => c.classList.remove('active'));
@@ -108,7 +102,7 @@
                 document.getElementById('friends-tab').classList.add('active');
             }
         }
-
+        
         function formatDate(timestamp) {
             if (!timestamp) return 'только что';
             const date = new Date(timestamp);
@@ -119,17 +113,27 @@
             if (diff < 86400) return `${Math.floor(diff / 3600)} ч назад`;
             return date.toLocaleDateString();
         }
-
+        
         function escapeHtml(text) {
             const div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
         }
-
+        
         function logout() {
             localStorage.clear();
             window.location.href = '/';
         }
+        
+        // Загружаем посты из localStorage
+        function loadPosts() {
+            const stored = localStorage.getItem('sok_posts');
+            if (stored) posts = JSON.parse(stored);
+            renderProfilePosts();
+        }
+        
+        loadPosts();
     </script>
+    <script src="script.js"></script>
 </body>
 </html>
