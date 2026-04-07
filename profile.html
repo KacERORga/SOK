@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SOK - Профиль</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+    <div class="orb orb-4"></div>
+
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="logo">SOK</div>
+            <div class="nav-links">
+                <a href="feed.html">🏠 Лента</a>
+                <a href="profile.html" class="active">👤 Профиль</a>
+                <a href="chat.html">💬 Мессенджер</a>
+                <a href="#" onclick="logout()">🚪 Выйти</a>
+            </div>
+            <div class="user-name" id="user-name"></div>
+        </div>
+    </nav>
+
+    <div class="profile-container">
+        <div class="profile-cover"></div>
+        <div class="profile-info-card">
+            <div class="profile-avatar-large" id="profile-avatar">👤</div>
+            <div class="profile-details">
+                <h1 id="profile-username"></h1>
+                <p id="profile-name"></p>
+                <div class="profile-stats">
+                    <div class="stat"><span id="posts-count">0</span> постов</div>
+                    <div class="stat"><span id="followers-count">0</span> подписчиков</div>
+                    <div class="stat"><span id="following-count">0</span> подписок</div>
+                </div>
+                <button id="follow-btn" class="profile-follow-btn" style="display: none;">Подписаться</button>
+            </div>
+        </div>
+
+        <div class="profile-tabs">
+            <button class="profile-tab active" onclick="showTab('posts')">Посты</button>
+            <button class="profile-tab" onclick="showTab('photos')">Фото</button>
+            <button class="profile-tab" onclick="showTab('friends')">Друзья</button>
+        </div>
+
+        <div id="posts-tab" class="profile-tab-content active">
+            <div id="profile-posts"></div>
+        </div>
+        <div id="photos-tab" class="profile-tab-content">
+            <div class="empty-state">📸 Фотографии скоро появятся</div>
+        </div>
+        <div id="friends-tab" class="profile-tab-content">
+            <div class="empty-state">👥 Друзья появятся здесь</div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+    <script>
+        let currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+        let profileUser = currentUser.username;
+        
+        document.getElementById('user-name').textContent = currentUser.username;
+        document.getElementById('profile-username').textContent = currentUser.username;
+        document.getElementById('profile-name').textContent = currentUser.name || currentUser.username;
+        document.getElementById('profile-avatar').textContent = currentUser.username?.charAt(0).toUpperCase();
+
+        loadProfilePosts();
+
+        function loadProfilePosts() {
+            fetch('/api/get-posts')
+                .then(res => res.json())
+                .then(posts => {
+                    const userPosts = posts.filter(p => p.username === profileUser);
+                    const container = document.getElementById('profile-posts');
+                    if (!userPosts.length) {
+                        container.innerHTML = '<div class="empty-state">📝 Нет постов. Напишите что-нибудь!</div>';
+                        return;
+                    }
+                    container.innerHTML = userPosts.map(post => `
+                        <div class="post-card">
+                            <div class="post-content">${escapeHtml(post.content)}</div>
+                            <div class="post-stats">
+                                <span>❤️ ${post.likes || 0}</span>
+                                <span>💬 ${post.comments_count || 0}</span>
+                            </div>
+                            <div class="post-date">${formatDate(post.created_at)}</div>
+                        </div>
+                    `).join('');
+                });
+        }
+
+        function showTab(tab) {
+            document.querySelectorAll('.profile-tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.profile-tab-content').forEach(c => c.classList.remove('active'));
+            
+            if (tab === 'posts') {
+                document.querySelector('.profile-tab:first-child').classList.add('active');
+                document.getElementById('posts-tab').classList.add('active');
+            } else if (tab === 'photos') {
+                document.querySelector('.profile-tab:nth-child(2)').classList.add('active');
+                document.getElementById('photos-tab').classList.add('active');
+            } else {
+                document.querySelector('.profile-tab:nth-child(3)').classList.add('active');
+                document.getElementById('friends-tab').classList.add('active');
+            }
+        }
+
+        function formatDate(timestamp) {
+            if (!timestamp) return 'только что';
+            const date = new Date(timestamp);
+            const now = new Date();
+            const diff = Math.floor((now - date) / 1000);
+            if (diff < 60) return 'только что';
+            if (diff < 3600) return `${Math.floor(diff / 60)} мин назад`;
+            if (diff < 86400) return `${Math.floor(diff / 3600)} ч назад`;
+            return date.toLocaleDateString();
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function logout() {
+            localStorage.clear();
+            window.location.href = '/';
+        }
+    </script>
+</body>
+</html>
