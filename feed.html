@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SOK - Лента</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+    <div class="orb orb-4"></div>
+
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="logo">SOK</div>
+            <div class="nav-links">
+                <a href="feed.html" class="active">🏠 Лента</a>
+                <a href="profile.html">👤 Профиль</a>
+                <a href="chat.html">💬 Мессенджер</a>
+                <a href="#" onclick="logout()">🚪 Выйти</a>
+            </div>
+            <div class="user-name" id="user-name"></div>
+        </div>
+    </nav>
+
+    <div class="main-container">
+        <!-- Левая колонка - меню -->
+        <div class="left-sidebar">
+            <div class="menu-card">
+                <div class="menu-item active">🏠 Моя лента</div>
+                <div class="menu-item">🔥 Популярное</div>
+                <div class="menu-item">👥 Друзья</div>
+                <div class="menu-item">📸 Фотографии</div>
+                <div class="menu-item">🎵 Музыка</div>
+            </div>
+            <div class="stats-card">
+                <div class="stat-item">
+                    <span class="stat-value" id="friends-count">0</span>
+                    <span class="stat-label">друзей</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-value" id="followers-count">0</span>
+                    <span class="stat-label">подписчиков</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Центральная колонка - Лента -->
+        <div class="feed-column">
+            <div class="create-post-card">
+                <div class="create-post-header">
+                    <div class="post-avatar" id="create-avatar">👤</div>
+                    <textarea id="post-content" placeholder="Что у вас нового?"></textarea>
+                </div>
+                <div class="create-post-actions">
+                    <button class="attach-btn">📷 Фото</button>
+                    <button class="attach-btn">🎵 Музыка</button>
+                    <button class="submit-btn" onclick="addPost()">Опубликовать</button>
+                </div>
+            </div>
+
+            <div class="feed-header">
+                <button class="feed-tab active">Рекомендации</button>
+                <button class="feed-tab">Подписки</button>
+            </div>
+
+            <div id="posts-list"></div>
+            <div id="loading" style="text-align: center; padding: 2rem; display: none;">Загрузка...</div>
+        </div>
+
+        <!-- Правая колонка - Рекомендации -->
+        <div class="right-sidebar">
+            <div class="suggestions-card">
+                <h3>Рекомендуемые друзья</h3>
+                <div id="suggestions-list"></div>
+            </div>
+            <div class="trending-card">
+                <h3>Актуальные темы</h3>
+                <div class="trending-item">#SOK Соцсеть</div>
+                <div class="trending-item">#KacERORga</div>
+                <div class="trending-item">#НовыйДизайн</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модалка комментариев -->
+    <div id="comments-modal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal()">&times;</span>
+            <h3>Комментарии</h3>
+            <div id="comments-list"></div>
+            <div class="add-comment">
+                <input type="text" id="comment-input" placeholder="Напишите комментарий...">
+                <button onclick="submitComment()">Отправить</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+    <script>
+        let currentPostId = null;
+        let currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+        
+        if (currentUser.username) {
+            document.getElementById('user-name').textContent = currentUser.username;
+            document.getElementById('create-avatar').textContent = currentUser.username.charAt(0).toUpperCase();
+        }
+
+        loadPosts();
+
+        function loadPosts() {
+            fetch('/api/get-posts')
+                .then(res => res.json())
+                .then(posts => {
+                    const container = document.getElementById('posts-list');
+                    if (!posts.length) {
+                        container.innerHTML = '<div class="empty-feed">Нет постов. Будьте первым, кто что-то опубликует!</div>';
+                        return;
+                    }
+                    container.innerHTML = posts.map(post => `
+                        <div class="post-card" data-post-id="${post.id}">
+                            <div class="post-header">
+                                <div class="post-author-avatar">${post.username?.charAt(0).toUpperCase() || '👤'}</div>
+                                <div class="post-author-info">
+                                    <div class="post-author-name">${post.username || 'Пользователь'}</div>
+                                    <div class="post-date">${formatDate(post.created_at)}</div>
+                                </div>
+                            </div>
+                            <div class="post-content">${escapeHtml(post.content)}</div>
+                            <div class="post-stats">
+                                <span>❤️ ${post.likes || 0}</span>
+                                <span>💬 ${post.comments_count || 0}</span>
+                                <span>🔄 ${post.reposts || 0}</span>
+                            </div>
+                            <div class="post-actions">
+                                <button class="action-btn like-btn" onclick="likePost(${post.id})">❤️ Нравится</button>
+                                <button class="action-btn" onclick="openComments(${post.id})">💬 Комментировать</button>
+                                <button class="action-btn" onclick="repost(${post.id})">🔄 Репостнуть</button>
+                            </div>
+                        </div>
+                    `).join('');
+                });
+        }
+
+        function addPost() {
+            const content = document.getElementById('post-content').value;
+            if (!content.trim()) return;
+
+            fetch('/api/add-post', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ content, username: currentUser.username })
+            }).then(() => {
+                document.getElementById('post-content').value = '';
+                loadPosts();
+            });
+        }
+
+        function likePost(postId) {
+            fetch('/api/like-post', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ postId })
+            }).then(() => loadPosts());
+        }
+
+        function openComments(postId) {
+            currentPostId = postId;
+            fetch(`/api/get-comments?postId=${postId}`)
+                .then(res => res.json())
+                .then(comments => {
+                    const container = document.getElementById('comments-list');
+                    container.innerHTML = comments.map(c => `
+                        <div class="comment">
+                            <strong>${c.username}:</strong> ${escapeHtml(c.content)}
+                            <div class="comment-date">${formatDate(c.created_at)}</div>
+                        </div>
+                    `).join('');
+                    document.getElementById('comments-modal').style.display = 'flex';
+                });
+        }
+
+        function submitComment() {
+            const content = document.getElementById('comment-input').value;
+            if (!content.trim()) return;
+
+            fetch('/api/add-comment', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ postId: currentPostId, content, username: currentUser.username })
+            }).then(() => {
+                document.getElementById('comment-input').value = '';
+                openComments(currentPostId);
+                loadPosts();
+            });
+        }
+
+        function repost(postId) {
+            fetch('/api/repost', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ postId, username: currentUser.username })
+            }).then(() => loadPosts());
+        }
+
+        function closeModal() {
+            document.getElementById('comments-modal').style.display = 'none';
+        }
+
+        function formatDate(timestamp) {
+            if (!timestamp) return 'только что';
+            const date = new Date(timestamp);
+            const now = new Date();
+            const diff = Math.floor((now - date) / 1000);
+            if (diff < 60) return 'только что';
+            if (diff < 3600) return `${Math.floor(diff / 60)} мин назад`;
+            if (diff < 86400) return `${Math.floor(diff / 3600)} ч назад`;
+            return date.toLocaleDateString();
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function logout() {
+            localStorage.clear();
+            window.location.href = '/';
+        }
+
+        loadSuggestions();
+        function loadSuggestions() {
+            fetch('/api/users')
+                .then(res => res.json())
+                .then(users => {
+                    const container = document.getElementById('suggestions-list');
+                    container.innerHTML = users.slice(0, 5).map(u => `
+                        <div class="suggestion-item">
+                            <div class="suggestion-avatar">${u.username?.charAt(0).toUpperCase()}</div>
+                            <div class="suggestion-info">
+                                <div class="suggestion-name">${u.username}</div>
+                                <button onclick="follow('${u.username}')" class="follow-btn">Подписаться</button>
+                            </div>
+                        </div>
+                    `).join('');
+                });
+        }
+
+        function follow(username) {
+            fetch('/api/follow', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ followTo: username, username: currentUser.username })
+            }).then(() => alert(`Вы подписались на ${username}`));
+        }
+    </script>
+</body>
+</html>
