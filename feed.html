@@ -26,28 +26,24 @@
     </nav>
 
     <div class="main-container">
-        <!-- Левая колонка - меню -->
         <div class="left-sidebar">
             <div class="menu-card">
                 <div class="menu-item active">🏠 Моя лента</div>
                 <div class="menu-item">🔥 Популярное</div>
                 <div class="menu-item">👥 Друзья</div>
-                <div class="menu-item">📸 Фотографии</div>
-                <div class="menu-item">🎵 Музыка</div>
             </div>
             <div class="stats-card">
                 <div class="stat-item">
-                    <span class="stat-value" id="friends-count">0</span>
+                    <span class="stat-value" id="friends-count">12</span>
                     <span class="stat-label">друзей</span>
                 </div>
                 <div class="stat-item">
-                    <span class="stat-value" id="followers-count">0</span>
+                    <span class="stat-value" id="followers-count">45</span>
                     <span class="stat-label">подписчиков</span>
                 </div>
             </div>
         </div>
 
-        <!-- Центральная колонка - Лента -->
         <div class="feed-column">
             <div class="create-post-card">
                 <div class="create-post-header">
@@ -67,25 +63,31 @@
             </div>
 
             <div id="posts-list"></div>
-            <div id="loading" style="text-align: center; padding: 2rem; display: none;">Загрузка...</div>
         </div>
 
-        <!-- Правая колонка - Рекомендации -->
         <div class="right-sidebar">
             <div class="suggestions-card">
                 <h3>Рекомендуемые друзья</h3>
-                <div id="suggestions-list"></div>
-            </div>
-            <div class="trending-card">
-                <h3>Актуальные темы</h3>
-                <div class="trending-item">#SOK Соцсеть</div>
-                <div class="trending-item">#KacERORga</div>
-                <div class="trending-item">#НовыйДизайн</div>
+                <div id="suggestions-list">
+                    <div class="suggestion-item">
+                        <div class="suggestion-avatar">А</div>
+                        <div class="suggestion-info">
+                            <div class="suggestion-name">Анна</div>
+                            <button class="follow-btn">Подписаться</button>
+                        </div>
+                    </div>
+                    <div class="suggestion-item">
+                        <div class="suggestion-avatar">М</div>
+                        <div class="suggestion-info">
+                            <div class="suggestion-name">Максим</div>
+                            <button class="follow-btn">Подписаться</button>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- Модалка комментариев -->
     <div id="comments-modal" class="modal">
         <div class="modal-content">
             <span class="close" onclick="closeModal()">&times;</span>
@@ -98,117 +100,126 @@
         </div>
     </div>
 
-    <script src="script.js"></script>
     <script>
+        let currentUser = JSON.parse(localStorage.getItem('user') || '{"username":"Гость"}');
         let currentPostId = null;
-        let currentUser = JSON.parse(localStorage.getItem('user') || '{}');
         
-        if (currentUser.username) {
-            document.getElementById('user-name').textContent = currentUser.username;
-            document.getElementById('create-avatar').textContent = currentUser.username.charAt(0).toUpperCase();
-        }
-
-        loadPosts();
-
-        function loadPosts() {
-            fetch('/api/get-posts')
-                .then(res => res.json())
-                .then(posts => {
-                    const container = document.getElementById('posts-list');
-                    if (!posts.length) {
-                        container.innerHTML = '<div class="empty-feed">Нет постов. Будьте первым, кто что-то опубликует!</div>';
-                        return;
-                    }
-                    container.innerHTML = posts.map(post => `
-                        <div class="post-card" data-post-id="${post.id}">
-                            <div class="post-header">
-                                <div class="post-author-avatar">${post.username?.charAt(0).toUpperCase() || '👤'}</div>
-                                <div class="post-author-info">
-                                    <div class="post-author-name">${post.username || 'Пользователь'}</div>
-                                    <div class="post-date">${formatDate(post.created_at)}</div>
-                                </div>
-                            </div>
-                            <div class="post-content">${escapeHtml(post.content)}</div>
-                            <div class="post-stats">
-                                <span>❤️ ${post.likes || 0}</span>
-                                <span>💬 ${post.comments_count || 0}</span>
-                                <span>🔄 ${post.reposts || 0}</span>
-                            </div>
-                            <div class="post-actions">
-                                <button class="action-btn like-btn" onclick="likePost(${post.id})">❤️ Нравится</button>
-                                <button class="action-btn" onclick="openComments(${post.id})">💬 Комментировать</button>
-                                <button class="action-btn" onclick="repost(${post.id})">🔄 Репостнуть</button>
-                            </div>
+        // Данные постов (хранятся в памяти браузера)
+        let posts = [
+            { id: 1, content: "Добро пожаловать в SOK Соцсеть! 🚀", username: "KacERORga", avatar: "K", created_at: Date.now(), likes: 5, comments: [], reposts: 0 },
+            { id: 2, content: "Это полный аналог ВК, но наш! ❤️", username: "Admin", avatar: "A", created_at: Date.now() - 3600000, likes: 3, comments: [{username:"Анна", content:"Круто!", date:Date.now()}], reposts: 1 },
+            { id: 3, content: "Здесь можно постить что угодно! 🔥", username: "SOK_Team", avatar: "S", created_at: Date.now() - 7200000, likes: 7, comments: [], reposts: 2 }
+        ];
+        
+        document.getElementById('user-name').textContent = currentUser.username;
+        document.getElementById('create-avatar').textContent = currentUser.username.charAt(0).toUpperCase();
+        
+        function renderPosts() {
+            const container = document.getElementById('posts-list');
+            if (!posts.length) {
+                container.innerHTML = '<div class="empty-feed">Нет постов. Будьте первым!</div>';
+                return;
+            }
+            container.innerHTML = posts.map(post => `
+                <div class="post-card" data-post-id="${post.id}">
+                    <div class="post-header">
+                        <div class="post-author-avatar">${post.avatar || post.username.charAt(0).toUpperCase()}</div>
+                        <div class="post-author-info">
+                            <div class="post-author-name">${post.username}</div>
+                            <div class="post-date">${formatDate(post.created_at)}</div>
                         </div>
-                    `).join('');
-                });
+                    </div>
+                    <div class="post-content">${escapeHtml(post.content)}</div>
+                    <div class="post-stats">
+                        <span>❤️ ${post.likes}</span>
+                        <span>💬 ${post.comments.length}</span>
+                        <span>🔄 ${post.reposts}</span>
+                    </div>
+                    <div class="post-actions">
+                        <button class="action-btn like-btn" onclick="likePost(${post.id})">❤️ Нравится</button>
+                        <button class="action-btn" onclick="openComments(${post.id})">💬 Комментировать</button>
+                        <button class="action-btn" onclick="repost(${post.id})">🔄 Репостнуть</button>
+                    </div>
+                </div>
+            `).join('');
         }
-
+        
         function addPost() {
             const content = document.getElementById('post-content').value;
             if (!content.trim()) return;
-
-            fetch('/api/add-post', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ content, username: currentUser.username })
-            }).then(() => {
-                document.getElementById('post-content').value = '';
-                loadPosts();
+            
+            posts.unshift({
+                id: Date.now(),
+                content: content,
+                username: currentUser.username,
+                avatar: currentUser.username.charAt(0).toUpperCase(),
+                created_at: Date.now(),
+                likes: 0,
+                comments: [],
+                reposts: 0
             });
+            
+            document.getElementById('post-content').value = '';
+            renderPosts();
         }
-
+        
         function likePost(postId) {
-            fetch('/api/like-post', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ postId })
-            }).then(() => loadPosts());
+            const post = posts.find(p => p.id === postId);
+            if (post) post.likes++;
+            renderPosts();
         }
-
+        
         function openComments(postId) {
             currentPostId = postId;
-            fetch(`/api/get-comments?postId=${postId}`)
-                .then(res => res.json())
-                .then(comments => {
-                    const container = document.getElementById('comments-list');
-                    container.innerHTML = comments.map(c => `
-                        <div class="comment">
-                            <strong>${c.username}:</strong> ${escapeHtml(c.content)}
-                            <div class="comment-date">${formatDate(c.created_at)}</div>
-                        </div>
-                    `).join('');
-                    document.getElementById('comments-modal').style.display = 'flex';
-                });
+            const post = posts.find(p => p.id === postId);
+            const container = document.getElementById('comments-list');
+            container.innerHTML = post.comments.map(c => `
+                <div class="comment">
+                    <strong>${c.username}:</strong> ${escapeHtml(c.content)}
+                    <div class="comment-date">${formatDate(c.date)}</div>
+                </div>
+            `).join('');
+            document.getElementById('comments-modal').style.display = 'flex';
         }
-
+        
         function submitComment() {
             const content = document.getElementById('comment-input').value;
             if (!content.trim()) return;
-
-            fetch('/api/add-comment', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ postId: currentPostId, content, username: currentUser.username })
-            }).then(() => {
-                document.getElementById('comment-input').value = '';
-                openComments(currentPostId);
-                loadPosts();
+            
+            const post = posts.find(p => p.id === currentPostId);
+            post.comments.push({
+                username: currentUser.username,
+                content: content,
+                date: Date.now()
             });
+            
+            document.getElementById('comment-input').value = '';
+            openComments(currentPostId);
+            renderPosts();
         }
-
+        
         function repost(postId) {
-            fetch('/api/repost', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ postId, username: currentUser.username })
-            }).then(() => loadPosts());
+            const original = posts.find(p => p.id === postId);
+            if (original) {
+                original.reposts++;
+                posts.unshift({
+                    id: Date.now(),
+                    content: `🔁 Репост: ${original.content}`,
+                    username: currentUser.username,
+                    avatar: currentUser.username.charAt(0).toUpperCase(),
+                    created_at: Date.now(),
+                    likes: 0,
+                    comments: [],
+                    reposts: 0
+                });
+                renderPosts();
+            }
         }
-
+        
         function closeModal() {
             document.getElementById('comments-modal').style.display = 'none';
         }
-
+        
         function formatDate(timestamp) {
             if (!timestamp) return 'только что';
             const date = new Date(timestamp);
@@ -219,43 +230,20 @@
             if (diff < 86400) return `${Math.floor(diff / 3600)} ч назад`;
             return date.toLocaleDateString();
         }
-
+        
         function escapeHtml(text) {
             const div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
         }
-
+        
         function logout() {
             localStorage.clear();
             window.location.href = '/';
         }
-
-        loadSuggestions();
-        function loadSuggestions() {
-            fetch('/api/users')
-                .then(res => res.json())
-                .then(users => {
-                    const container = document.getElementById('suggestions-list');
-                    container.innerHTML = users.slice(0, 5).map(u => `
-                        <div class="suggestion-item">
-                            <div class="suggestion-avatar">${u.username?.charAt(0).toUpperCase()}</div>
-                            <div class="suggestion-info">
-                                <div class="suggestion-name">${u.username}</div>
-                                <button onclick="follow('${u.username}')" class="follow-btn">Подписаться</button>
-                            </div>
-                        </div>
-                    `).join('');
-                });
-        }
-
-        function follow(username) {
-            fetch('/api/follow', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ followTo: username, username: currentUser.username })
-            }).then(() => alert(`Вы подписались на ${username}`));
-        }
+        
+        renderPosts();
     </script>
+    <script src="script.js"></script>
 </body>
 </html>
